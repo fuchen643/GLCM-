@@ -89,7 +89,7 @@ computeGlcmFeatures(image: Uint8Array, width: number, height: number,
 ### 4.3 UI 组件
 - `ImageUpload`：拖拽/点击/粘贴上传，自动转灰度，预览
 - `ParamsPanel`：灰度级（8/16/32/64）、距离 d（1–10）、方向（0/45/90/135 单选或多选）、对称开关
-- `MatrixHeatmap`：canvas 渲染 Ng×Ng 矩阵热力图，配颜色条、悬停读值
+- `MatrixHeatmap`：canvas 渲染 Ng×Ng 矩阵热力图，**必须带图例（颜色条 colorbar，标注颜色→数值映射与最小/最大值刻度）**，支持悬停读值
 - `FeatureTable`：特征名 + 数值，支持复制
 - `ExportPanel`：特征 CSV/JSON、矩阵 CSV、热力图 PNG
 - `BatchTab`：批量上传 + 参数 + 调用后端 + 下载 CSV + 进度/状态显示
