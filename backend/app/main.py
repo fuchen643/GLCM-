@@ -37,10 +37,13 @@ def extract_images(files: List[UploadFile]):
             raise HTTPException(413, "上传总大小超过 100MB 限制")
         name = f.filename or "image"
         if name.lower().endswith(".zip"):
-            with zipfile.ZipFile(io.BytesIO(data)) as z:
-                for entry in z.namelist():
-                    if entry.lower().endswith(IMG_EXTS):
-                        out.append((entry, z.read(entry)))
+            try:
+                with zipfile.ZipFile(io.BytesIO(data)) as z:
+                    for entry in z.namelist():
+                        if entry.lower().endswith(IMG_EXTS):
+                            out.append((entry, z.read(entry)))
+            except (zipfile.BadZipFile, zipfile.LargeZipFile):
+                out.append((name, data))  # 坏 zip：作为一条坏文件，下游 decode_gray 会标注 ERROR 行
         else:
             out.append((name, data))
     return out
@@ -58,7 +61,10 @@ async def batch(
         raise HTTPException(400, "levels 必须是 8/16/32/64")
     if not (1 <= distance <= 10):
         raise HTTPException(400, "distance 必须在 1..10")
-    angle_list = [int(a) for a in angles.split(",") if a.strip()]
+    try:
+        angle_list = [int(a) for a in angles.split(",") if a.strip()]
+    except ValueError:
+        raise HTTPException(400, "angles 必须是 0/45/90/135 的逗号列表")
     if not angle_list or any(a not in (0, 45, 90, 135) for a in angle_list):
         raise HTTPException(400, "angles 必须是 0/45/90/135 的逗号列表")
 

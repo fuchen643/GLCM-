@@ -55,3 +55,25 @@ def test_batch_bad_levels():
         data={"levels": "7"},
     )
     assert resp.status_code == 400
+
+
+def test_batch_bad_angles():
+    resp = client.post(
+        "/api/batch",
+        files=[("files", ("a.png", _png_bytes(), "image/png"))],
+        data={"levels": "16", "angles": "abc"},
+    )
+    assert resp.status_code == 400
+
+
+def test_batch_corrupt_zip():
+    resp = client.post(
+        "/api/batch",
+        files=[("files", ("bad.zip", b"not a zip file", "application/zip"))],
+        data={"levels": "16", "distance": "1", "angles": "0", "symmetric": "true"},
+    )
+    assert resp.status_code == 200
+    lines = resp.content.decode("utf-8-sig").strip().splitlines()
+    assert len(lines) == 2  # header + 1 ERROR row
+    assert lines[1].startswith("bad.zip,")
+    assert "ERROR:" in lines[1]
