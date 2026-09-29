@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { forwardRef, useEffect, useRef } from 'react';
 
 interface Props {
   matrix: number[][];
@@ -18,8 +18,8 @@ function colorMap(t: number): [number, number, number] {
   return [r, g, b];
 }
 
-export default function MatrixHeatmap({ matrix, title }: Props) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+const MatrixHeatmap = forwardRef<HTMLCanvasElement, Props>(function MatrixHeatmap({ matrix, title }, ref) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const n = matrix.length;
   const size = PAD * 2 + n * CELL;
   const height = Math.max(size, 180);
@@ -71,15 +71,23 @@ export default function MatrixHeatmap({ matrix, title }: Props) {
     ctx.fillText('0', lx + 18, ly + lh);                        // 底端 = 0
   }, [matrix]);
 
+  function setRefs(el: HTMLCanvasElement | null) {
+    canvasRef.current = el;
+    if (typeof ref === 'function') ref(el);
+    else if (ref) ref.current = el;
+  }
+
   return (
     <section>
       {title && <h3>{title}</h3>}
       <canvas
-        ref={canvasRef}
+        ref={setRefs}
         width={PAD * 2 + n * CELL + LEGEND_W}
         height={height}
         style={{ border: '1px solid #ddd' }}
       />
     </section>
   );
-}
+});
+
+export default MatrixHeatmap;

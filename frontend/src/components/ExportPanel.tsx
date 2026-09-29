@@ -16,7 +16,13 @@ function download(filename: string, content: string, mime: string) {
   URL.revokeObjectURL(url);
 }
 
-export default function ExportPanel({ results, imageName }: { results: ResultRow[]; imageName: string }) {
+interface Props {
+  results: ResultRow[];
+  imageName: string;
+  getHeatmapCanvas?: (angle: number) => HTMLCanvasElement | null;
+}
+
+export default function ExportPanel({ results, imageName, getHeatmapCanvas }: Props) {
   function csvFeatures() {
     const header = ['angle', ...FEATURE_KEYS];
     const lines = results.map((r) => [r.angle, ...FEATURE_KEYS.map((k) => r.features[k])]);
@@ -33,6 +39,15 @@ export default function ExportPanel({ results, imageName }: { results: ResultRow
       null, 2
     );
   }
+  function png(angle: number) {
+    const c = getHeatmapCanvas?.(angle);
+    if (!c) return;
+    const dataUrl = c.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = `${imageName}_heatmap_${angle}.png`;
+    a.click();
+  }
   return (
     <section className="export">
       <button onClick={() => download(`${imageName}_features.csv`, csvFeatures(), 'text/csv')}>特征 CSV</button>
@@ -40,6 +55,11 @@ export default function ExportPanel({ results, imageName }: { results: ResultRow
       {results.map((r) => (
         <button key={r.angle} onClick={() => download(`${imageName}_matrix_${r.angle}.csv`, csvMatrix(r.angle), 'text/csv')}>
           矩阵 CSV ({r.angle}°)
+        </button>
+      ))}
+      {results.map((r) => (
+        <button key={`png-${r.angle}`} onClick={() => png(r.angle)}>
+          热力图 PNG ({r.angle}°)
         </button>
       ))}
     </section>
