@@ -5,12 +5,21 @@ from typing import List
 
 import numpy as np
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from PIL import Image
 
 from .glcm import FEATURE_KEYS, glcm_matrix, haralick_features, quantize_image
 
 app = FastAPI(title="GLCM 批量分析后端")
+
+# 前端（Vercel）与后端（Render）跨源，且本地 dev 也是跨端口，必须放开 CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 MAX_IMAGES = 5000
 MAX_TOTAL_BYTES = 100 * 1024 * 1024
@@ -23,8 +32,14 @@ def health():
 
 
 def decode_gray(data: bytes) -> np.ndarray:
-    img = Image.open(io.BytesIO(data)).convert("L")
-    return np.asarray(img, dtype=np.uint8)
+    # 与前端 rgbaToGray 用同一公式（0.299/0.587/0.114 + round half up），
+    # 保证同图在「单图（前端）vs 批量（后端）」两端结果一致。
+    # 不用 PIL .convert("L")（其 ITU 系数 19595/38470/7471 与 0.299/0.587/0.114 有微小差异，
+    # 约 0.5% 像素会差 1 灰阶，量化后可能落在不同 bin）。
+    img = Image.open(io.BytesIO(data)).convert("RGB")
+    rgb = np.asarray(img, dtype=np.uint8).astype(np.float64)
+    gray = 0.299 * rgb[:, :, 0] + 0.587 * rgb[:, :, 1] + 0.114 * rgb[:, :, 2]
+    return np.floor(gray + 0.5).astype(np.uint8)  # round half up，与前端 Math.round 一致
 
 
 def extract_images(files: List[UploadFile]):

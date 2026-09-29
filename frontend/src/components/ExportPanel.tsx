@@ -12,7 +12,9 @@ function download(filename: string, content: string, mime: string) {
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
+  document.body.appendChild(a);
   a.click();
+  a.remove();
   URL.revokeObjectURL(url);
 }
 
@@ -46,7 +48,9 @@ export default function ExportPanel({ results, imageName, getHeatmapCanvas }: Pr
     const a = document.createElement('a');
     a.href = dataUrl;
     a.download = `${imageName}_heatmap_${angle}.png`;
+    document.body.appendChild(a);
     a.click();
+    a.remove();
   }
   return (
     <section className="export">

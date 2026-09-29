@@ -34,7 +34,7 @@
 Deploy 后得到 `https://glcm-backend.onrender.com`（免费层首次唤醒约几十秒）。
 
 ### 桌面 exe
-`cd desktop && npm install && npm run dist`，产物在 `desktop/dist/`，发布到 GitHub Releases。
+`cd desktop && npm install && npm run dist`（`dist` 会自动先构建前端 `frontend/dist`），产物在 `desktop/dist/`，发布到 GitHub Releases。
 
 ## 参数说明
 灰度级 8/16/32/64；距离 1–10；方向 0/45/90/135；对称开关。

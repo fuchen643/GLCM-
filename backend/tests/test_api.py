@@ -77,3 +77,30 @@ def test_batch_corrupt_zip():
     assert len(lines) == 2  # header + 1 ERROR row
     assert lines[1].startswith("bad.zip,")
     assert "ERROR:" in lines[1]
+
+
+def test_cors_header_present():
+    # 前端(Vercel)/后端(Render)跨源，响应必须带 Access-Control-Allow-Origin
+    resp = client.post(
+        "/api/batch",
+        files=[("files", ("a.png", _png_bytes(), "image/png"))],
+        data={"levels": "16", "distance": "1", "angles": "0", "symmetric": "true"},
+        headers={"Origin": "https://glcm-frontend.vercel.app"},
+    )
+    assert resp.status_code == 200
+    assert resp.headers["access-control-allow-origin"] == "*"
+
+
+def test_decode_gray_matches_frontend_formula():
+    # 与前端 rgbaToGray 同公式：0.299R+0.587G+0.114B, round half up
+    # (7,21,220) -> 39.5 -> 40；PIL .convert("L") 会得 39，此测试锁定一致性
+    import numpy as np
+    from PIL import Image
+    from app.main import decode_gray
+
+    arr = np.array([[[7, 21, 220]]], dtype=np.uint8)
+    buf = io.BytesIO()
+    Image.fromarray(arr, mode="RGB").save(buf, format="PNG")
+    gray = decode_gray(buf.getvalue())
+    assert gray.shape == (1, 1)
+    assert int(gray[0, 0]) == 40

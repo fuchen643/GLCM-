@@ -5,6 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "predist": "cd ../frontend && npm run build",
     "dist": "electron-builder"
   },
   "devDependencies": {

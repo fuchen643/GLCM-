@@ -35,7 +35,9 @@ export default function BatchTab({ levels, distance, angles, symmetric }: Props)
       const a = document.createElement('a');
       a.href = url;
       a.download = 'glcm_features.csv';
+      document.body.appendChild(a);
       a.click();
+      a.remove();
       URL.revokeObjectURL(url);
       setMsg('完成，已下载 CSV');
     } catch (e) {
