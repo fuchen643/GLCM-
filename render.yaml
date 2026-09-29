@@ -2,5 +2,6 @@ services:
   - type: web
     name: glcm-backend
     runtime: docker
+    rootDir: backend
     plan: free
     healthCheckPath: /health
