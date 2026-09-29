@@ -1,0 +1,23 @@
+{
+  "name": "glcm-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.glcm.tool",
+    "productName": "GLCM纹理分析工具",
+    "directories": { "output": "dist" },
+    "files": ["main.js"],
+    "extraResources": [{ "from": "../frontend/dist", "to": "app" }],
+    "win": { "target": "nsis", "signAndEditExecutable": false },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true }
+  }
+}
