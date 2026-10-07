@@ -8,6 +8,7 @@ interface Props {
 export default function ImageUpload({ onImage }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
 
   function handleFile(file: File) {
     if (!file.type.startsWith('image/')) {
@@ -33,6 +34,7 @@ export default function ImageUpload({ onImage }: Props) {
 
   function onDrop(e: DragEvent) {
     e.preventDefault();
+    setDragging(false);
     const f = e.dataTransfer.files?.[0];
     if (f) handleFile(f);
   }
@@ -43,7 +45,13 @@ export default function ImageUpload({ onImage }: Props) {
   }
 
   return (
-    <div className="upload" onDragOver={(e) => e.preventDefault()} onDrop={onDrop} onPaste={onPaste}>
+    <div
+      className={`upload${dragging ? ' dragging' : ''}`}
+      onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={onDrop}
+      onPaste={onPaste}
+    >
       <input
         ref={inputRef}
         type="file"
@@ -51,8 +59,12 @@ export default function ImageUpload({ onImage }: Props) {
         style={{ display: 'none' }}
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
       />
-      <button onClick={() => inputRef.current?.click()}>选择图片</button>
-      <span> 或拖拽 / 粘贴到此处</span>
+      <svg className="upload-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 16V4m0 0l-4 4m4-4l4 4" />
+        <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+      </svg>
+      <p className="upload-text">点击选择图片，或拖拽 / 粘贴到此处</p>
+      <button type="button" className="btn-primary" onClick={() => inputRef.current?.click()}>选择图片</button>
       {error && <p className="error">{error}</p>}
     </div>
   );

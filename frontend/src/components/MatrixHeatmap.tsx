@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useRef } from 'react';
+import { forwardRef, useEffect, useRef, useState, type MouseEvent } from 'react';
 
 interface Props {
   matrix: number[][];
@@ -6,8 +6,8 @@ interface Props {
 }
 
 const CELL = 12;          // 每格像素
-const LEGEND_W = 44;      // 图例宽度
-const PAD = 32;           // 画布内边距
+const LEGEND_W = 64;      // 图例宽度
+const PAD = 34;           // 画布内边距
 
 function colorMap(t: number): [number, number, number] {
   // 蓝→青→黄 渐变色（viridis 简化），t ∈ [0,1]
@@ -20,6 +20,7 @@ function colorMap(t: number): [number, number, number] {
 
 const MatrixHeatmap = forwardRef<HTMLCanvasElement, Props>(function MatrixHeatmap({ matrix, title }, ref) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [hover, setHover] = useState<{ i: number; j: number; v: number } | null>(null);
   const n = matrix.length;
   const size = PAD * 2 + n * CELL;
   const height = Math.max(size, 180);
@@ -67,9 +68,34 @@ const MatrixHeatmap = forwardRef<HTMLCanvasElement, Props>(function MatrixHeatma
     ctx.strokeRect(lx, ly, 14, lh);
     ctx.fillStyle = '#555';
     ctx.font = '10px sans-serif';
-    ctx.fillText(max.toExponential(2), lx + 18, ly + 4);        // 顶端 = max
-    ctx.fillText('0', lx + 18, ly + lh);                        // 底端 = 0
+    ctx.fillText(max.toExponential(2), lx + 18, ly + 10);   // 顶端 = max
+    ctx.fillText('0', lx + 18, ly + lh);                    // 底端 = 0
+
+    // 图例标签（左竖排）
+    ctx.save();
+    ctx.translate(lx - 6, ly + lh / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#555';
+    ctx.fillText('概率 P(i,j)', 0, 0);
+    ctx.restore();
+    ctx.textAlign = 'start';
   }, [matrix]);
+
+  function onMove(e: MouseEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    const j = Math.floor((x - PAD) / CELL);
+    const i = Math.floor((y - PAD) / CELL);
+    if (i >= 0 && i < n && j >= 0 && j < n) {
+      setHover({ i, j, v: matrix[i][j] });
+    } else {
+      setHover(null);
+    }
+  }
 
   function setRefs(el: HTMLCanvasElement | null) {
     canvasRef.current = el;
@@ -78,14 +104,20 @@ const MatrixHeatmap = forwardRef<HTMLCanvasElement, Props>(function MatrixHeatma
   }
 
   return (
-    <section>
+    <section className="heatmap">
       {title && <h3>{title}</h3>}
       <canvas
         ref={setRefs}
         width={PAD * 2 + n * CELL + LEGEND_W}
         height={height}
-        style={{ border: '1px solid #ddd' }}
+        onMouseMove={onMove}
+        onMouseLeave={() => setHover(null)}
       />
+      <p className="heatmap-readout">
+        {hover
+          ? `灰度 ${hover.i} → ${hover.j}：P(${hover.i}, ${hover.j}) = ${hover.v.toExponential(4)}`
+          : '悬停矩阵查看灰度对概率'}
+      </p>
     </section>
   );
 });
