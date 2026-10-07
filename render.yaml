@@ -5,3 +5,14 @@ services:
     rootDir: backend
     plan: free
     healthCheckPath: /health
+
+staticSites:
+  - type: web
+    name: glcm-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    publishDir: dist
+    envVars:
+      - key: VITE_API_BASE
+        value: https://glcm-backend.onrender.com

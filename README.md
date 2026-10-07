@@ -17,7 +17,7 @@
 
 ## 测试
 前端：`cd frontend && npm test`
-后端：`cd backend && python -m pytest -q`
+后端（含对拍依赖）：`cd backend && pip install -r requirements-dev.txt && python -m pytest -q`
 
 ## 部署
 ### 前端 → Vercel
