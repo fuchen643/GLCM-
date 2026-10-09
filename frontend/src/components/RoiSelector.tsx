@@ -7,17 +7,25 @@ export interface RoiRect {
   h: number;
 }
 
+export interface RoiRegion {
+  id: string;
+  label: string;
+  roi: RoiRect;
+  color: string;
+}
+
 interface Props {
   previewUrl: string;
   width: number;   // 图片自然宽度（px）
   height: number;  // 图片自然高度（px）
-  roi: RoiRect | null;
-  onSelect: (roi: RoiRect | null) => void;
+  regions: RoiRegion[];
+  onAdd: (roi: RoiRect) => void;
+  onRemove: (id: string) => void;
 }
 
 const MIN_SIZE = 4; // 最小选区（自然像素），过小视为取消
 
-export default function RoiSelector({ previewUrl, width, height, roi, onSelect }: Props) {
+export default function RoiSelector({ previewUrl, width, height, regions, onAdd, onRemove }: Props) {
   const imgRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [draft, setDraft] = useState<RoiRect | null>(null);
@@ -63,17 +71,19 @@ export default function RoiSelector({ previewUrl, width, height, roi, onSelect }
     setDraft(null);
     const xi = Math.round(r.x), yi = Math.round(r.y);
     const wi = Math.round(r.w), hi = Math.round(r.h);
-    if (wi >= MIN_SIZE && hi >= MIN_SIZE) onSelect({ x: xi, y: yi, w: wi, h: hi });
-    else onSelect(null);
+    if (wi >= MIN_SIZE && hi >= MIN_SIZE) onAdd({ x: xi, y: yi, w: wi, h: hi });
   }
 
-  // 局部放大预览（nearest-neighbor 保持像素感）
+  const last = regions[regions.length - 1];
+
+  // 局部放大预览（nearest-neighbor 保持像素感，展示最近框选的区域）
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (!roi) return;
+    if (!last) return;
+    const roi = last.roi;
     const img = new Image();
     img.onload = () => {
       ctx.imageSmoothingEnabled = false;
@@ -87,17 +97,14 @@ export default function RoiSelector({ previewUrl, width, height, roi, onSelect }
       ctx.drawImage(img, roi.x, roi.y, roi.w, roi.h, dx, dy, dw, dh);
     };
     img.src = previewUrl;
-  }, [roi, previewUrl]);
+  }, [last, previewUrl]);
 
-  const shown = draft ?? roi;
-  const pct = shown
-    ? {
-        left: (shown.x / width) * 100,
-        top: (shown.y / height) * 100,
-        width: (shown.w / width) * 100,
-        height: (shown.h / height) * 100,
-      }
-    : null;
+  const pctOf = (r: RoiRect) => ({
+    left: (r.x / width) * 100,
+    top: (r.y / height) * 100,
+    width: (r.w / width) * 100,
+    height: (r.h / height) * 100,
+  });
 
   return (
     <div>
@@ -108,23 +115,46 @@ export default function RoiSelector({ previewUrl, width, height, roi, onSelect }
         onMouseUp={onMouseUp}
         onMouseLeave={() => { if (dragging.current) { dragging.current = false; start.current = null; setDraft(null); } }}
       >
-        <img ref={imgRef} src={previewUrl} alt="预览（可框选局部）" draggable={false} />
-        {pct && (
-          <div
-            className="roi-rect"
-            style={{ left: `${pct.left}%`, top: `${pct.top}%`, width: `${pct.width}%`, height: `${pct.height}%` }}
-          />
-        )}
+        <img ref={imgRef} src={previewUrl} alt="预览（拖动框选局部区域）" draggable={false} />
+        {regions.map((rg, idx) => {
+          const p = pctOf(rg.roi);
+          return (
+            <div
+              key={rg.id}
+              className="roi-rect"
+              style={{ left: `${p.left}%`, top: `${p.top}%`, width: `${p.width}%`, height: `${p.height}%`, borderColor: rg.color, background: 'transparent' }}
+            >
+              <span className="roi-tag" style={{ background: rg.color }}>{idx + 1}</span>
+            </div>
+          );
+        })}
+        {draft && (() => {
+          const p = pctOf(draft);
+          return <div className="roi-rect" style={{ left: `${p.left}%`, top: `${p.top}%`, width: `${p.width}%`, height: `${p.height}%` }} />;
+        })()}
       </div>
 
       <div className="roi-zoom">
         <canvas ref={canvasRef} width={240} height={180} />
         <p className="roi-zoom-hint">
-          {roi
-            ? `局部放大：${roi.w}×${roi.h} @ (${roi.x}, ${roi.y})`
-            : '在预览图上按住鼠标拖动，框选要分析的局部区域'}
+          {last
+            ? `局部放大：${last.roi.w}×${last.roi.h} @ (${last.roi.x}, ${last.roi.y})`
+            : '在预览图上按住鼠标拖动，框选要分析的局部区域（可框选多个）'}
         </p>
       </div>
+
+      {regions.length > 0 && (
+        <ul className="roi-list">
+          {regions.map((rg, idx) => (
+            <li key={rg.id}>
+              <span className="roi-list-dot" style={{ background: rg.color }} />
+              <span className="roi-list-label">{rg.label}</span>
+              <span className="roi-list-meta">{rg.roi.w}×{rg.roi.h}</span>
+              <button className="roi-del" onClick={() => onRemove(rg.id)} title={`删除${idx + 1}`}>×</button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

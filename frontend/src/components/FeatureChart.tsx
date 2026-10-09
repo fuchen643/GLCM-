@@ -3,11 +3,12 @@ import { FEATURE_LABELS } from '../featureMeta';
 
 interface Props {
   rows: { angle: number; features: Record<string, number> }[];
+  label?: string;
 }
 
 const COLORS = ['#6366f1', '#0ea5e9', '#f59e0b', '#ef4444'];
 
-export default function FeatureChart({ rows }: Props) {
+export default function FeatureChart({ rows, label }: Props) {
   if (!rows.length) return null;
 
   const multi = rows.length > 1;
@@ -39,7 +40,7 @@ export default function FeatureChart({ rows }: Props) {
 
   return (
     <section className="feature-chart card">
-      <h2>特征分布</h2>
+      <h2>特征分布{label ? `（${label}）` : ''}</h2>
       <p className="chart-note">
         {multi
           ? '同一特征内按各方向占比显示，反映特征随方向的变化。'

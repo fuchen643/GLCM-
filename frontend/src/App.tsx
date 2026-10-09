@@ -7,7 +7,8 @@ import FeatureChart from './components/FeatureChart';
 import ExportPanel, { type ResultRow } from './components/ExportPanel';
 import BatchTab from './components/BatchTab';
 import InfoSection from './components/InfoSection';
-import RoiSelector, { type RoiRect } from './components/RoiSelector';
+import RoiSelector, { type RoiRect, type RoiRegion } from './components/RoiSelector';
+import { COLORMAPS, type ColormapId } from './colormaps';
 import { computeGlcmFeatures, rgbaToGray } from './glcm';
 
 interface ImageData {
@@ -18,7 +19,19 @@ interface ImageData {
   name: string;
 }
 
+interface RegionResult {
+  id: string;
+  label: string;
+  color: string;
+  width: number;
+  height: number;
+  rows: ResultRow[];
+}
+
 type SampleKind = 'checker' | 'stripes' | 'texture';
+
+const REGION_COLORS = ['#f43f5e', '#0ea5e9', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899'];
+const FULL_COLOR = '#6366f1';
 
 // 内置示例纹理（无需上传即可体验），返回与上传一致的灰度数组与预览
 function syntheticSample(kind: SampleKind): ImageData {
@@ -70,36 +83,72 @@ export default function App() {
   const [tab, setTab] = useState<'single' | 'batch'>('single');
   const [img, setImg] = useState<ImageData | null>(null);
   const [params, setParams] = useState<ParamState>({ levels: 16, distance: 1, angles: [0], symmetric: true });
-  const [roi, setRoi] = useState<RoiRect | null>(null);
-  const [mode, setMode] = useState<'full' | 'roi'>('full');
-  const heatmapCanvases = useRef<Record<number, HTMLCanvasElement | null>>({});
+  const [rois, setRois] = useState<RoiRegion[]>([]);
+  const [viewRegionId, setViewRegionId] = useState('full');
+  const [colormap, setColormap] = useState<ColormapId>('viridis');
+  const roiCounter = useRef(0);
+  const heatmapCanvases = useRef<Record<string, HTMLCanvasElement | null>>({});
 
-  const roiActive = mode === 'roi' && roi !== null;
-
-  // 分析所用灰度数据：全图或 ROI 子区域
-  const src = useMemo(() => {
-    if (!img) return null;
-    if (roiActive && roi) {
-      return { gray: cropGray(img.gray, img.width, roi), width: roi.w, height: roi.h };
-    }
-    return { gray: img.gray, width: img.width, height: img.height };
-  }, [img, roiActive, roi]);
-
-  const results: ResultRow[] = useMemo(() => {
-    if (!src) return [];
-    return params.angles.map((angle) => {
-      const r = computeGlcmFeatures(src.gray, src.width, src.height, {
-        levels: params.levels, distance: params.distance, angle, symmetric: params.symmetric,
+  // 分析目标：全图 + 各 ROI 裁剪子图
+  const targets = useMemo(() => {
+    if (!img) return [];
+    const list = [
+      { id: 'full', label: '全图', color: FULL_COLOR, gray: img.gray, width: img.width, height: img.height },
+    ];
+    for (const r of rois) {
+      list.push({
+        id: r.id,
+        label: r.label,
+        color: r.color,
+        gray: cropGray(img.gray, img.width, r.roi),
+        width: r.roi.w,
+        height: r.roi.h,
       });
-      return { angle, matrix: r.matrix, features: r.features };
-    });
-  }, [src, params]);
+    }
+    return list;
+  }, [img, rois]);
 
-  const getHeatmapCanvas = (angle: number) => heatmapCanvases.current[angle] ?? null;
+  const resultsByRegion: RegionResult[] = useMemo(() => {
+    return targets.map((t) => ({
+      id: t.id,
+      label: t.label,
+      color: t.color,
+      width: t.width,
+      height: t.height,
+      rows: params.angles.map((angle) => {
+        const r = computeGlcmFeatures(t.gray, t.width, t.height, {
+          levels: params.levels, distance: params.distance, angle, symmetric: params.symmetric,
+        });
+        return { angle, matrix: r.matrix, features: r.features };
+      }),
+    }));
+  }, [targets, params]);
+
+  const viewRegion = resultsByRegion.find((r) => r.id === viewRegionId) ?? resultsByRegion[0];
 
   function loadImage(data: ImageData) {
     setImg(data);
-    setRoi(null);
+    setRois([]);
+    setViewRegionId('full');
+    roiCounter.current = 0;
+  }
+
+  function addRegion(roi: RoiRect) {
+    roiCounter.current += 1;
+    const n = roiCounter.current;
+    const region: RoiRegion = {
+      id: `roi-${Date.now()}-${n}`,
+      label: `区域 ${n}`,
+      roi,
+      color: REGION_COLORS[(n - 1) % REGION_COLORS.length],
+    };
+    setRois((prev) => [...prev, region]);
+    setViewRegionId(region.id);
+  }
+
+  function removeRegion(id: string) {
+    setRois((prev) => prev.filter((r) => r.id !== id));
+    setViewRegionId((cur) => (cur === id ? 'full' : cur));
   }
 
   const paramsPanel = <ParamsPanel value={params} onChange={setParams} />;
@@ -143,27 +192,35 @@ export default function App() {
               )}
             </section>
 
-            {img && (
+            {img && viewRegion && (
               <div className="layout">
                 <aside className="left">
                   <section className="card">
                     <h2>预览与选图</h2>
-                    <div className="mode-toggle">
-                      <button className={mode === 'full' ? 'on' : ''} onClick={() => setMode('full')}>全图分析</button>
-                      <button className={mode === 'roi' ? 'on' : ''} onClick={() => setMode('roi')}>局部分析</button>
-                    </div>
                     <RoiSelector
                       previewUrl={img.previewUrl}
                       width={img.width}
                       height={img.height}
-                      roi={roi}
-                      onSelect={setRoi}
+                      regions={rois}
+                      onAdd={addRegion}
+                      onRemove={removeRegion}
                     />
-                    {mode === 'roi' && !roi && <p className="error">请先在预览图上框选局部区域</p>}
+                    <div className="region-select">
+                      <button className={`region-btn${viewRegion.id === 'full' ? ' on' : ''}`} onClick={() => setViewRegionId('full')}>
+                        <span className="region-dot" style={{ background: FULL_COLOR }} />
+                        全图
+                      </button>
+                      {rois.map((r) => (
+                        <button key={r.id} className={`region-btn${viewRegion.id === r.id ? ' on' : ''}`} onClick={() => setViewRegionId(r.id)}>
+                          <span className="region-dot" style={{ background: r.color }} />
+                          {r.label}
+                        </button>
+                      ))}
+                    </div>
                     <dl className="meta">
                       <div><dt>图片</dt><dd>{img.name}</dd></div>
                       <div><dt>尺寸</dt><dd>{img.width} × {img.height} px</dd></div>
-                      <div><dt>分析范围</dt><dd>{roiActive && roi ? `局部 ${roi.w}×${roi.h}` : '全图'}</dd></div>
+                      <div><dt>当前范围</dt><dd>{viewRegion.id === 'full' ? '全图' : `${viewRegion.label} ${viewRegion.width}×${viewRegion.height}`}</dd></div>
                       <div><dt>灰度级</dt><dd>{params.levels} 级</dd></div>
                       <div><dt>矩阵</dt><dd>{params.levels} × {params.levels}</dd></div>
                     </dl>
@@ -177,25 +234,42 @@ export default function App() {
                   <section className="card">
                     <h2>
                       灰度共生矩阵
-                      {roiActive && roi && <span className="range-badge">局部 {roi.w}×{roi.h}</span>}
+                      <span className="range-badge" style={{ color: '#fff', background: viewRegion.color }}>{viewRegion.label}</span>
                     </h2>
-                    {results.map((r) => (
-                      <MatrixHeatmap
-                        key={r.angle}
-                        ref={(el) => { heatmapCanvases.current[r.angle] = el; }}
-                        matrix={r.matrix}
-                        title={`GLCM 矩阵（${r.angle}°）`}
-                      />
+                    <div className="heatmap-controls">
+                      <label className="cmap-label">
+                        颜色表
+                        <select className="cmap-select" value={colormap} onChange={(e) => setColormap(e.target.value as ColormapId)}>
+                          {COLORMAPS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                        </select>
+                      </label>
+                    </div>
+                    {resultsByRegion.map((rg) => (
+                      <div key={rg.id} className={`heatmap-group${rg.id === viewRegion.id ? '' : ' hidden'}`}>
+                        {rg.rows.map((r) => (
+                          <MatrixHeatmap
+                            key={`${rg.id}:${r.angle}`}
+                            ref={(el) => { heatmapCanvases.current[`${rg.id}:${r.angle}`] = el; }}
+                            matrix={r.matrix}
+                            title={`${rg.label} · GLCM 矩阵（${r.angle}°）`}
+                            colormap={colormap}
+                          />
+                        ))}
+                      </div>
                     ))}
                   </section>
-                  <FeatureChart rows={results} />
+                  <FeatureChart rows={viewRegion.rows} label={viewRegion.label} />
                   <section className="card">
-                    <h2>特征值</h2>
-                    <FeatureTable rows={results} />
+                    <h2>特征值（全图 vs 区域对照）</h2>
+                    <FeatureTable regions={resultsByRegion} />
                   </section>
                   <section className="card">
                     <h2>导出结果</h2>
-                    <ExportPanel results={results} imageName={roiActive && roi ? `${img.name}_局部` : img.name} getHeatmapCanvas={getHeatmapCanvas} />
+                    <ExportPanel
+                      regions={resultsByRegion}
+                      imageName={img.name}
+                      getHeatmapCanvas={(regionId, angle) => heatmapCanvases.current[`${regionId}:${angle}`] ?? null}
+                    />
                   </section>
                 </section>
               </div>

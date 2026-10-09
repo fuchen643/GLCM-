@@ -1,24 +1,17 @@
 import { forwardRef, useEffect, useRef, useState, type MouseEvent } from 'react';
+import { colormapAt, type ColormapId } from '../colormaps';
 
 interface Props {
   matrix: number[][];
   title?: string;
+  colormap?: ColormapId;
 }
 
 const CELL = 12;          // 每格像素
 const LEGEND_W = 64;      // 图例宽度
 const PAD = 34;           // 画布内边距
 
-function colorMap(t: number): [number, number, number] {
-  // 蓝→青→黄 渐变色（viridis 简化），t ∈ [0,1]
-  const v = Math.max(0, Math.min(1, t));
-  const r = Math.round(255 * Math.min(1, Math.max(0, 1.7 * v - 0.2)));
-  const g = Math.round(255 * Math.min(1, Math.max(0, 1.5 * v)));
-  const b = Math.round(255 * Math.min(1, Math.max(0, 1 - 1.4 * v)));
-  return [r, g, b];
-}
-
-const MatrixHeatmap = forwardRef<HTMLCanvasElement, Props>(function MatrixHeatmap({ matrix, title }, ref) {
+const MatrixHeatmap = forwardRef<HTMLCanvasElement, Props>(function MatrixHeatmap({ matrix, title, colormap = 'viridis' }, ref) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [hover, setHover] = useState<{ i: number; j: number; v: number } | null>(null);
   const n = matrix.length;
@@ -37,7 +30,7 @@ const MatrixHeatmap = forwardRef<HTMLCanvasElement, Props>(function MatrixHeatma
     // 矩阵格
     for (let i = 0; i < n; i++) {
       for (let j = 0; j < n; j++) {
-        const [r, g, b] = colorMap(matrix[i][j] / max);
+        const [r, g, b] = colormapAt(colormap, matrix[i][j] / max);
         ctx.fillStyle = `rgb(${r},${g},${b})`;
         ctx.fillRect(PAD + j * CELL, PAD + i * CELL, CELL, CELL);
       }
@@ -59,7 +52,7 @@ const MatrixHeatmap = forwardRef<HTMLCanvasElement, Props>(function MatrixHeatma
     const lh = n * CELL;
     const grad = ctx.createLinearGradient(0, ly, 0, ly + lh);
     for (let s = 0; s <= 1; s += 0.05) {
-      const [r, g, b] = colorMap(s);
+      const [r, g, b] = colormapAt(colormap, s);
       grad.addColorStop(s, `rgb(${r},${g},${b})`);
     }
     ctx.fillStyle = grad;
@@ -80,7 +73,7 @@ const MatrixHeatmap = forwardRef<HTMLCanvasElement, Props>(function MatrixHeatma
     ctx.fillText('概率 P(i,j)', 0, 0);
     ctx.restore();
     ctx.textAlign = 'start';
-  }, [matrix]);
+  }, [matrix, colormap]);
 
   function onMove(e: MouseEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;

@@ -396,6 +396,58 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   vertical-align: middle;
 }
 
+/* 多区域切换 */
+.region-select { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 0; }
+.region-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; padding: 6px 12px; border-radius: 999px;
+  border: 1px solid var(--border-strong); background: #fff; color: var(--text-2);
+}
+.region-btn.on {
+  border-color: var(--accent); background: var(--accent-soft);
+  color: var(--accent-strong); font-weight: 600;
+}
+.region-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
+
+/* 颜色表选择 */
+.heatmap-controls { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; }
+.cmap-label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); }
+.cmap-select {
+  font-family: inherit; font-size: 13px; padding: 6px 10px;
+  border: 1px solid var(--border-strong); border-radius: 8px; background: #fff; color: var(--text);
+}
+.cmap-select:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+.heatmap-group.hidden { display: none; }
+
+/* 选区标签与列表 */
+.roi-tag {
+  position: absolute; top: -12px; left: -2px;
+  font-size: 10px; font-weight: 700; color: #fff;
+  padding: 1px 5px; border-radius: 3px; line-height: 1.4; pointer-events: none;
+}
+.roi-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.roi-list li {
+  display: flex; align-items: center; gap: 8px; font-size: 13px;
+  padding: 5px 8px; border: 1px solid var(--border); border-radius: 8px; background: #f8fafc;
+}
+.roi-list-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+.roi-list-label { font-weight: 500; color: var(--text); }
+.roi-list-meta { color: var(--muted); font-size: 12px; margin-left: auto; font-family: var(--mono); }
+.roi-del { border: none; background: transparent; color: var(--muted); font-size: 16px; padding: 0 6px; line-height: 1; }
+.roi-del:hover { color: #dc2626; }
+
+/* 对比表两级表头 */
+.features.compare .region-head { text-align: center; background: #f1f5f9; font-weight: 600; color: var(--text); border-left: 1px solid var(--border-strong); }
+.features.compare .region-head .region-dot { vertical-align: -1px; margin-right: 6px; }
+.features.compare .angle-head { text-align: right; background: #f8fafc; }
+.features.compare .feat-head { text-align: left; }
+
+/* 导出分组 */
+.export { align-items: center; }
+.export-sep { width: 1px; align-self: stretch; background: var(--border); margin: 0 2px; }
+.export-label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); font-weight: 500; }
+.export-label .region-dot { width: 9px; height: 9px; }
+
 /* 响应式 */
 @media (max-width: 860px) {
   .layout { flex-direction: column; }
