@@ -1,4 +1,5 @@
 services:
+  # 后端：Docker web service（批量分析）
   - type: web
     name: glcm-backend
     runtime: docker
@@ -6,13 +7,13 @@ services:
     plan: free
     healthCheckPath: /health
 
-staticSites:
+  # 前端：静态站点（网页 / PWA）
   - type: web
     name: glcm-frontend
     runtime: static
     rootDir: frontend
     buildCommand: npm install && npm run build
-    publishDir: dist
+    staticPublishPath: ./dist
     envVars:
       - key: VITE_API_BASE
         value: https://glcm-backend.onrender.com
